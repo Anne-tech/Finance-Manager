@@ -47,6 +47,7 @@ export const deleteUsuario = async (id: string): Promise<void> => {
   const db = await getDatabase();
   await db.runAsync('DELETE FROM transacoes WHERE usuario_id = ?', [id]);
   await db.runAsync('DELETE FROM categorias WHERE usuario_id = ?', [id]);
+  await db.runAsync('DELETE FROM ajustes_saldo WHERE usuario_id = ?', [id]);
   await db.runAsync('DELETE FROM usuarios WHERE id = ?', [id]);
 };
 
@@ -110,6 +111,86 @@ export const updateCategoria = async (id: string, nome: string): Promise<void> =
 export const deleteCategoria = async (id: string): Promise<void> => {
   const db = await getDatabase();
   await db.runAsync('DELETE FROM categorias WHERE id = ?', [id]);
+};
+
+// ========================
+// AJUSTES DE SALDO (MÊS ANTERIOR)
+// ========================
+
+export const getAjusteSaldoAnterior = async (
+  usuarioId: string,
+  ano: number,
+  mes: number
+): Promise<number | null> => {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<{ valor: number }>(
+    'SELECT valor FROM ajustes_saldo WHERE usuario_id = ? AND ano = ? AND mes = ?',
+    [usuarioId, ano, mes]
+  );
+  return rows.length > 0 ? rows[0].valor : null;
+};
+
+export const setAjusteSaldoAnterior = async (
+  usuarioId: string,
+  ano: number,
+  mes: number,
+  valor: number
+): Promise<void> => {
+  const db = await getDatabase();
+  const id = `adj_${usuarioId}_${ano}_${mes}`;
+  await db.runAsync(
+    `INSERT INTO ajustes_saldo (id, usuario_id, ano, mes, valor) VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(usuario_id, ano, mes) DO UPDATE SET valor = excluded.valor, updated_at = CURRENT_TIMESTAMP`,
+    [id, usuarioId, ano, mes, valor]
+  );
+};
+
+export const removeAjusteSaldoAnterior = async (
+  usuarioId: string,
+  ano: number,
+  mes: number
+): Promise<void> => {
+  const db = await getDatabase();
+  await db.runAsync(
+    'DELETE FROM ajustes_saldo WHERE usuario_id = ? AND ano = ? AND mes = ?',
+    [usuarioId, ano, mes]
+  );
+};
+
+/**
+ * Saldo do mês imediatamente anterior à data de referência (primeiro dia do
+ * período de um relatório). Usa o ajuste manual salvo pelo usuário quando
+ * existir; caso contrário, calcula automaticamente (entradas - saídas) das
+ * transações daquele mês anterior.
+ */
+export const getSaldoMesAnterior = async (
+  usuarioId: string | undefined,
+  dataReferenciaISO: string
+): Promise<number> => {
+  const [anoStr, mesStr] = dataReferenciaISO.split('-');
+  let mes = parseInt(mesStr, 10) - 1;
+  let ano = parseInt(anoStr, 10);
+  mes -= 1;
+  if (mes < 0) {
+    mes = 11;
+    ano -= 1;
+  }
+
+  if (usuarioId) {
+    const ajuste = await getAjusteSaldoAnterior(usuarioId, ano, mes);
+    if (ajuste !== null) return ajuste;
+  }
+
+  const db = await getDatabase();
+  const mesAnteriorStr = `${ano}-${String(mes + 1).padStart(2, '0')}`;
+  let query = `SELECT tipo, valor FROM transacoes WHERE data LIKE ?`;
+  const params: any[] = [`${mesAnteriorStr}%`];
+  if (usuarioId) {
+    query += ' AND usuario_id = ?';
+    params.push(usuarioId);
+  }
+  const rows = await db.getAllAsync<{ tipo: 'ENTRADA' | 'SAIDA'; valor: number }>(query, params);
+  return rows.reduce((acc, r) => (r.tipo === 'ENTRADA' ? acc + r.valor : acc - r.valor), 0);
 };
 
 // ========================
@@ -206,6 +287,106 @@ export const deleteAllTransacoes = async (usuarioId?: string): Promise<void> => 
   } else {
     await db.runAsync('DELETE FROM transacoes');
   }
+};
+
+// ========================
+// BACKUP (EXPORTAR / IMPORTAR)
+// ========================
+
+export interface AjusteSaldo {
+  usuario_id: string;
+  ano: number;
+  mes: number;
+  valor: number;
+}
+
+export interface BackupData {
+  versao: number;
+  exportadoEm: string;
+  usuarios: Usuario[];
+  categorias: Categoria[];
+  transacoes: Omit<Transacao, 'categoria'>[];
+  ajustesSaldo: AjusteSaldo[];
+}
+
+export interface ResultadoImportacao {
+  usuarios: number;
+  categorias: number;
+  transacoes: number;
+  ajustes: number;
+}
+
+export const exportarDados = async (): Promise<BackupData> => {
+  const db = await getDatabase();
+  const usuarios = await db.getAllAsync<Usuario>('SELECT id, nome FROM usuarios');
+  const categorias = await db.getAllAsync<Categoria>(
+    'SELECT id, nome, tipo, usuario_id, descricao, cor, icone FROM categorias'
+  );
+  const transacoes = await db.getAllAsync<Omit<Transacao, 'categoria'>>(
+    'SELECT id, descricao, valor, tipo, data, categoria_id, usuario_id FROM transacoes'
+  );
+  const ajustesSaldo = await db.getAllAsync<AjusteSaldo>(
+    'SELECT usuario_id, ano, mes, valor FROM ajustes_saldo'
+  );
+
+  return {
+    versao: 1,
+    exportadoEm: new Date().toISOString(),
+    usuarios,
+    categorias,
+    transacoes,
+    ajustesSaldo,
+  };
+};
+
+export const importarDados = async (
+  dados: BackupData,
+  opts?: { modo?: 'mesclar' | 'substituir' }
+): Promise<ResultadoImportacao> => {
+  const db = await getDatabase();
+  const modo = opts?.modo || 'mesclar';
+
+  if (modo === 'substituir') {
+    await db.runAsync('DELETE FROM transacoes');
+    await db.runAsync('DELETE FROM ajustes_saldo');
+    await db.runAsync('DELETE FROM categorias');
+    await db.runAsync('DELETE FROM usuarios');
+  }
+
+  const resultado: ResultadoImportacao = { usuarios: 0, categorias: 0, transacoes: 0, ajustes: 0 };
+
+  for (const u of dados.usuarios || []) {
+    const r = await db.runAsync('INSERT OR IGNORE INTO usuarios (id, nome) VALUES (?, ?)', [u.id, u.nome]);
+    if (r.changes > 0) resultado.usuarios++;
+  }
+
+  for (const c of dados.categorias || []) {
+    const r = await db.runAsync(
+      `INSERT OR IGNORE INTO categorias (id, nome, tipo, usuario_id, descricao, cor, icone) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [c.id, c.nome, c.tipo, c.usuario_id || null, c.descricao || null, c.cor || null, c.icone || null]
+    );
+    if (r.changes > 0) resultado.categorias++;
+  }
+
+  for (const t of dados.transacoes || []) {
+    const r = await db.runAsync(
+      `INSERT OR IGNORE INTO transacoes (id, descricao, valor, tipo, data, categoria_id, usuario_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [t.id, t.descricao, t.valor, t.tipo, t.data, t.categoria_id, t.usuario_id || null]
+    );
+    if (r.changes > 0) resultado.transacoes++;
+  }
+
+  for (const a of dados.ajustesSaldo || []) {
+    const id = `adj_${a.usuario_id}_${a.ano}_${a.mes}`;
+    const r = await db.runAsync(
+      `INSERT INTO ajustes_saldo (id, usuario_id, ano, mes, valor) VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(usuario_id, ano, mes) DO UPDATE SET valor = excluded.valor, updated_at = CURRENT_TIMESTAMP`,
+      [id, a.usuario_id, a.ano, a.mes, a.valor]
+    );
+    if (r.changes > 0) resultado.ajustes++;
+  }
+
+  return resultado;
 };
 
 export const getSaldoAntesDe = async (

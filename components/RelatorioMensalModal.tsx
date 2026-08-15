@@ -6,13 +6,13 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Alert
+  Platform,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { File, Paths } from 'expo-file-system/next';
-import { getRelatorio } from '../database/operations';
+import { getRelatorio, getSaldoMesAnterior } from '../database/operations';
 import { useUser } from '../context/UserContext';
 
 interface Props {
@@ -44,6 +44,8 @@ export default function RelatorioMensalModal({ visible, onClose }: Props) {
   const [ano, setAno] = useState(String(anoAtual));
   const [formato, setFormato] = useState<'pdf' | 'word'>('pdf');
   const [gerando, setGerando] = useState(false);
+  const [mensagemErro, setMensagemErro] = useState('');
+  const [mensagemSucesso, setMensagemSucesso] = useState('');
 
   const formatarValor = (valor: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -52,7 +54,9 @@ export default function RelatorioMensalModal({ visible, onClose }: Props) {
     }).format(valor);
   };
 
-  const gerarHTML = (dados: any, mesNome: string, ano: string) => {
+  const gerarHTML = (dados: any, mesNome: string, ano: string, saldoAnterior: number) => {
+    const caixaTotalMes = dados.resumo.totalEntradas + saldoAnterior - dados.resumo.totalSaidas;
+
     // Agrupar transações por categoria
     const entradasPorCategoria: Record<string, number> = {};
     const saidasPorCategoria: Record<string, number> = {};
@@ -120,10 +124,13 @@ export default function RelatorioMensalModal({ visible, onClose }: Props) {
             background-color: #f9f9f9;
           }
           .saldo {
-            margin-top: 30px;
+            margin-top: 12px;
             padding: 15px;
             background-color: #f0f0f0;
             border-radius: 5px;
+          }
+          .saldo:first-of-type {
+            margin-top: 30px;
           }
           .saldo-positivo {
             background-color: #d1fae5;
@@ -188,11 +195,20 @@ export default function RelatorioMensalModal({ visible, onClose }: Props) {
           </table>
         </div>
 
-        <div class="saldo ${dados.resumo.saldoPeriodo >= 0 ? 'saldo-positivo' : 'saldo-negativo'}">
+        <div class="saldo">
           <table>
             <tr>
-              <td><strong>SALDO EM CAIXA</strong></td>
-              <td class="valor"><strong>${formatarValor(dados.resumo.saldoPeriodo)}</strong></td>
+              <td>SALDO DO MÊS ANTERIOR</td>
+              <td class="valor">${formatarValor(saldoAnterior)}</td>
+            </tr>
+          </table>
+        </div>
+
+        <div class="saldo ${caixaTotalMes >= 0 ? 'saldo-positivo' : 'saldo-negativo'}">
+          <table>
+            <tr>
+              <td><strong>CAIXA TOTAL MÊS</strong></td>
+              <td class="valor"><strong>${formatarValor(caixaTotalMes)}</strong></td>
             </tr>
           </table>
         </div>
@@ -202,6 +218,8 @@ export default function RelatorioMensalModal({ visible, onClose }: Props) {
   };
 
   const gerarRelatorio = async () => {
+    setMensagemErro('');
+    setMensagemSucesso('');
     try {
       setGerando(true);
 
@@ -215,43 +233,86 @@ export default function RelatorioMensalModal({ visible, onClose }: Props) {
 
       if (!dados || dados.transacoes.length === 0) {
         const mesNome = MESES.find(m => m.valor === mes)?.nome || '';
-        Alert.alert(
-          'Sem dados',
-          `Não há transações registradas em ${mesNome}/${ano}.\n\nTente selecionar um período diferente ou adicione transações primeiro.`,
-          [{ text: 'OK' }]
+        setMensagemErro(
+          `Não há transações registradas em ${mesNome}/${ano}. Tente selecionar um período diferente ou adicione transações primeiro.`
         );
         setGerando(false);
         return;
       }
 
+      const saldoAnterior = await getSaldoMesAnterior(usuarioAtivo?.id, dataInicio);
+
       const mesNome = MESES.find(m => m.valor === mes)?.nome || '';
-      const html = gerarHTML(dados, mesNome, ano);
+      const html = gerarHTML(dados, mesNome, ano, saldoAnterior);
+      const eletronAPI = typeof window !== 'undefined' ? window.electronAPI : undefined;
 
       if (formato === 'pdf') {
-        // Gerar PDF
-        const { uri } = await Print.printToFileAsync({ html });
-
-        await Sharing.shareAsync(uri, {
-          mimeType: 'application/pdf',
-          dialogTitle: `Relatório ${mesNome}/${ano}`,
-          UTI: 'com.adobe.pdf'
-        });
+        if (Platform.OS === 'web' && eletronAPI) {
+          // No Electron, renderiza o HTML para PDF de verdade (sem abrir o diálogo de impressão)
+          // e salva via diálogo nativo "Salvar como".
+          const resultado = await eletronAPI.printToPDF({
+            html,
+            defaultPath: `relatorio_${mesNome}_${ano}.pdf`,
+          });
+          if (resultado.canceled) {
+            setGerando(false);
+            return;
+          }
+        } else if (Platform.OS === 'web') {
+          // Fallback em navegador comum (sem Electron): abre o relatório numa aba própria
+          // e aciona a impressão dessa aba (não da aplicação inteira).
+          const janela = window.open('', '_blank');
+          if (janela) {
+            janela.document.write(html);
+            janela.document.close();
+            janela.focus();
+            janela.print();
+          }
+        } else {
+          const { uri } = await Print.printToFileAsync({ html });
+          await Sharing.shareAsync(uri, {
+            mimeType: 'application/pdf',
+            dialogTitle: `Relatório ${mesNome}/${ano}`,
+            UTI: 'com.adobe.pdf',
+          });
+        }
       } else {
         // Gerar arquivo Word (HTML que abre no Word)
         const nomeArquivo = `relatorio_${mesNome}_${ano}.doc`;
-        const file = new File(Paths.document, nomeArquivo);
 
-        await file.create();
-        await file.write(html);
-
-        await Sharing.shareAsync(file.uri, {
-          mimeType: 'application/msword',
-          dialogTitle: `Relatório ${mesNome}/${ano}`
-        });
+        if (Platform.OS === 'web' && eletronAPI) {
+          const resultado = await eletronAPI.saveFile({
+            defaultPath: nomeArquivo,
+            filters: [{ name: 'Documento Word', extensions: ['doc'] }],
+            content: html,
+            encoding: 'utf-8',
+          });
+          if (resultado.canceled) {
+            setGerando(false);
+            return;
+          }
+        } else if (Platform.OS === 'web') {
+          const blob = new Blob([html], { type: 'application/msword' });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = nomeArquivo;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        } else {
+          const file = new File(Paths.document, nomeArquivo);
+          await file.create();
+          await file.write(html);
+          await Sharing.shareAsync(file.uri, {
+            mimeType: 'application/msword',
+            dialogTitle: `Relatório ${mesNome}/${ano}`,
+          });
+        }
       }
 
-      Alert.alert('Sucesso', 'Relatório gerado com sucesso!');
-      onClose();
+      setMensagemSucesso('Relatório gerado com sucesso!');
     } catch (error: any) {
       console.error('Erro ao gerar relatório:', error);
 
@@ -268,7 +329,7 @@ export default function RelatorioMensalModal({ visible, onClose }: Props) {
         mensagem = error.message;
       }
 
-      Alert.alert('Erro', mensagem, [{ text: 'OK' }]);
+      setMensagemErro(mensagem);
     } finally {
       setGerando(false);
     }
@@ -353,13 +414,16 @@ export default function RelatorioMensalModal({ visible, onClose }: Props) {
               </View>
             </View>
 
+            {!!mensagemErro && <Text style={styles.mensagemErro}>{mensagemErro}</Text>}
+            {!!mensagemSucesso && <Text style={styles.mensagemSucesso}>{mensagemSucesso}</Text>}
+
             <View style={styles.buttons}>
               <TouchableOpacity
                 style={[styles.button, styles.cancelButton]}
                 onPress={onClose}
                 disabled={gerando}
               >
-                <Text style={styles.cancelButtonText}>Cancelar</Text>
+                <Text style={styles.cancelButtonText}>{mensagemSucesso ? 'Fechar' : 'Cancelar'}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.button, styles.submitButton]}
@@ -442,6 +506,19 @@ const styles = StyleSheet.create({
   },
   formatoTextActive: {
     color: '#10b981',
+  },
+  mensagemErro: {
+    color: '#b91c1c',
+    fontSize: 14,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  mensagemSucesso: {
+    color: '#10b981',
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 4,
+    textAlign: 'center',
   },
   buttons: {
     flexDirection: 'row',

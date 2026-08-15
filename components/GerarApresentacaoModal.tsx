@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Alert,
   Platform,
   ActivityIndicator,
 } from 'react-native';
@@ -50,12 +49,17 @@ export default function GerarApresentacaoModal({ visible, onClose }: Props) {
   const [organizacao, setOrganizacao] = useState(usuarioAtivo?.nome || '');
   const [subtitulo, setSubtitulo] = useState('');
   const [gerando, setGerando] = useState(false);
+  const [mensagemErro, setMensagemErro] = useState('');
+  const [mensagemSucesso, setMensagemSucesso] = useState('');
 
   const anos = Array.from({ length: anoAtual - 2000 + 1 }, (_, i) => anoAtual - i);
 
   const gerar = async () => {
+    setMensagemErro('');
+    setMensagemSucesso('');
+
     if (!organizacao.trim()) {
-      Alert.alert('Erro', 'Informe o nome da organização/igreja que aparecerá na capa.');
+      setMensagemErro('Informe o nome da organização/igreja que aparecerá na capa.');
       return;
     }
 
@@ -69,7 +73,7 @@ export default function GerarApresentacaoModal({ visible, onClose }: Props) {
       periodoRotulo = `Ano de ${ano}`;
     } else {
       if (dataInicio > dataFim) {
-        Alert.alert('Erro', 'A data inicial não pode ser maior que a data final');
+        setMensagemErro('A data inicial não pode ser maior que a data final.');
         return;
       }
       inicioISO = formatarDataISO(dataInicio);
@@ -81,7 +85,7 @@ export default function GerarApresentacaoModal({ visible, onClose }: Props) {
 
     setGerando(true);
     try {
-      await gerarECompartilharApresentacao({
+      const resultado = await gerarECompartilharApresentacao({
         dataInicio: inicioISO,
         dataFim: fimISO,
         usuarioId: usuarioAtivo?.id,
@@ -89,10 +93,13 @@ export default function GerarApresentacaoModal({ visible, onClose }: Props) {
         subtitulo: subtitulo.trim() || undefined,
         periodoRotulo,
       });
-      Alert.alert('Sucesso', 'Apresentação gerada com sucesso!');
-      onClose();
+      if (resultado === null) {
+        // Usuário cancelou o diálogo de salvar; permanece no formulário.
+        return;
+      }
+      setMensagemSucesso('Apresentação gerada com sucesso!');
     } catch (error: any) {
-      Alert.alert('Erro ao gerar apresentação', error?.message || String(error));
+      setMensagemErro(error?.message || String(error));
     } finally {
       setGerando(false);
     }
@@ -197,9 +204,12 @@ export default function GerarApresentacaoModal({ visible, onClose }: Props) {
               </View>
             )}
 
+            {!!mensagemErro && <Text style={styles.mensagemErro}>{mensagemErro}</Text>}
+            {!!mensagemSucesso && <Text style={styles.mensagemSucesso}>{mensagemSucesso}</Text>}
+
             <View style={styles.buttons}>
               <TouchableOpacity style={[styles.button, styles.cancelButton]} onPress={onClose} disabled={gerando}>
-                <Text style={styles.cancelButtonText}>Cancelar</Text>
+                <Text style={styles.cancelButtonText}>{mensagemSucesso ? 'Fechar' : 'Cancelar'}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.button, styles.submitButton]} onPress={gerar} disabled={gerando}>
                 {gerando ? (
@@ -301,6 +311,19 @@ const styles = StyleSheet.create({
   },
   formatoTextActive: {
     color: '#10b981',
+  },
+  mensagemErro: {
+    color: '#b91c1c',
+    fontSize: 14,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  mensagemSucesso: {
+    color: '#10b981',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 12,
+    textAlign: 'center',
   },
   buttons: {
     flexDirection: 'row',

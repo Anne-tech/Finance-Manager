@@ -8,6 +8,7 @@ import {
   StyleSheet,
   FlatList,
   Alert,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { getCategorias, updateCategoria, deleteCategoria, type Categoria } from '../database/operations';
@@ -96,7 +97,10 @@ export default function GerenciarCategoriasModal({ visible, tipo, usuarioId, onC
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.overlay}>
+      <KeyboardAvoidingView
+        style={styles.overlay}
+        behavior="padding"
+      >
         <View style={styles.modal}>
           <View style={styles.header}>
             <Text style={styles.title}>Gerenciar Categorias</Text>
@@ -143,7 +147,7 @@ export default function GerenciarCategoriasModal({ visible, tipo, usuarioId, onC
             )}
           />
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

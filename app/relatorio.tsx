@@ -5,13 +5,12 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  Alert,
   Platform,
   ActivityIndicator
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { getRelatorio } from '../database/operations';
+import { getRelatorio, getSaldoMesAnterior } from '../database/operations';
 import { useUser } from '../context/UserContext';
 import { File, Paths } from 'expo-file-system/next';
 import * as Sharing from 'expo-sharing';
@@ -38,11 +37,14 @@ export default function Relatorio() {
   const [dataInicio, setDataInicio] = useState(new Date());
   const [dataFim, setDataFim] = useState(new Date());
   const [relatorio, setRelatorio] = useState<RelatorioData | null>(null);
+  const [saldoAnterior, setSaldoAnterior] = useState(0);
   const [loading, setLoading] = useState(false);
   const [showDateInicio, setShowDateInicio] = useState(false);
   const [showDateFim, setShowDateFim] = useState(false);
   const [mostrarRelatorioMensal, setMostrarRelatorioMensal] = useState(false);
   const [mostrarApresentacao, setMostrarApresentacao] = useState(false);
+  const [mensagemErro, setMensagemErro] = useState('');
+  const [mensagemSucesso, setMensagemSucesso] = useState('');
 
   const formatarValor = (valor: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -65,8 +67,11 @@ export default function Relatorio() {
   };
 
   const gerarRelatorio = async () => {
+    setMensagemErro('');
+    setMensagemSucesso('');
+
     if (dataInicio > dataFim) {
-      Alert.alert('Erro', 'A data inicial não pode ser maior que a data final');
+      setMensagemErro('A data inicial não pode ser maior que a data final.');
       return;
     }
 
@@ -87,15 +92,15 @@ export default function Relatorio() {
 
       // Verificar se há dados
       if (!data || data.transacoes.length === 0) {
-        Alert.alert(
-          'Sem dados',
-          'Não há transações registradas no período selecionado.\n\nTente selecionar um período diferente ou adicione transações primeiro.',
-          [{ text: 'OK' }]
+        setMensagemErro(
+          'Não há transações registradas no período selecionado. Tente selecionar um período diferente ou adicione transações primeiro.'
         );
         setRelatorio(null);
         return;
       }
 
+      const saldoAnteriorPeriodo = await getSaldoMesAnterior(usuarioAtivo?.id, dataInicioISO);
+      setSaldoAnterior(saldoAnteriorPeriodo);
       setRelatorio(data);
     } catch (error: any) {
       console.error('Erro ao gerar relatório:', error);
@@ -111,9 +116,7 @@ export default function Relatorio() {
         mensagem = `Erro: ${error.message}`;
       }
 
-      Alert.alert('Erro', mensagem, [
-        { text: 'OK' }
-      ]);
+      setMensagemErro(mensagem);
       setRelatorio(null);
     } finally {
       setLoading(false);
@@ -122,6 +125,8 @@ export default function Relatorio() {
 
   const exportarCSV = async () => {
     if (!relatorio) return;
+    setMensagemErro('');
+    setMensagemSucesso('');
 
     try {
       const csvContent = [
@@ -147,19 +152,40 @@ export default function Relatorio() {
       const dataFimISO = `${yearFim}-${monthFim}-${dayFim}`;
 
       const fileName = `relatorio_${dataInicioISO}_${dataFimISO}.csv`;
-      const file = new File(Paths.document, fileName);
+      const eletronAPI = typeof window !== 'undefined' ? window.electronAPI : undefined;
 
-      await file.create();
-      await file.write(csvContent);
-
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(file.uri);
+      if (Platform.OS === 'web' && eletronAPI) {
+        const resultado = await eletronAPI.saveFile({
+          defaultPath: fileName,
+          filters: [{ name: 'CSV', extensions: ['csv'] }],
+          content: csvContent,
+          encoding: 'utf-8',
+        });
+        if (resultado.canceled) return;
+      } else if (Platform.OS === 'web') {
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
       } else {
-        Alert.alert('Sucesso', `Arquivo salvo em: ${file.uri}`);
+        const file = new File(Paths.document, fileName);
+        await file.create();
+        await file.write(csvContent);
+
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(file.uri);
+        }
       }
+
+      setMensagemSucesso('Relatório CSV exportado com sucesso!');
     } catch (error) {
       console.error('Erro ao exportar CSV:', error);
-      Alert.alert('Erro', 'Não foi possível exportar o relatório');
+      setMensagemErro('Não foi possível exportar o relatório.');
     }
   };
 
@@ -236,6 +262,9 @@ export default function Relatorio() {
           </TouchableOpacity>
         </View>
 
+        {!!mensagemErro && <Text style={styles.mensagemErro}>{mensagemErro}</Text>}
+        {!!mensagemSucesso && <Text style={styles.mensagemSucesso}>{mensagemSucesso}</Text>}
+
         {loading && <ActivityIndicator size="large" color="#10b981" style={styles.loader} />}
 
         {relatorio && !loading && (
@@ -277,6 +306,33 @@ export default function Relatorio() {
                   relatorio.resumo.saldoPeriodo >= 0 ? styles.valuePositive : styles.valueNegative
                 ]}>
                   {formatarValor(relatorio.resumo.saldoPeriodo)}
+                </Text>
+              </View>
+
+              <View style={[styles.resumoCard, styles.cardTotal]}>
+                <Text style={styles.resumoLabel}>Saldo do Mês Anterior</Text>
+                <Text style={[
+                  styles.resumoValor,
+                  saldoAnterior >= 0 ? styles.valuePositive : styles.valueNegative
+                ]}>
+                  {formatarValor(saldoAnterior)}
+                </Text>
+              </View>
+
+              <View style={[
+                styles.resumoCard,
+                (relatorio.resumo.totalEntradas + saldoAnterior - relatorio.resumo.totalSaidas) >= 0
+                  ? styles.cardPositive
+                  : styles.cardNegative
+              ]}>
+                <Text style={styles.resumoLabel}>Caixa Total</Text>
+                <Text style={[
+                  styles.resumoValor,
+                  (relatorio.resumo.totalEntradas + saldoAnterior - relatorio.resumo.totalSaidas) >= 0
+                    ? styles.valuePositive
+                    : styles.valueNegative
+                ]}>
+                  {formatarValor(relatorio.resumo.totalEntradas + saldoAnterior - relatorio.resumo.totalSaidas)}
                 </Text>
               </View>
 
@@ -387,6 +443,21 @@ const styles = StyleSheet.create({
   buttonsContainer: {
     margin: 16,
     gap: 12,
+  },
+  mensagemErro: {
+    color: '#b91c1c',
+    fontSize: 14,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  mensagemSucesso: {
+    color: '#10b981',
+    fontSize: 14,
+    fontWeight: '600',
+    marginHorizontal: 16,
+    marginBottom: 12,
+    textAlign: 'center',
   },
   button: {
     padding: 16,

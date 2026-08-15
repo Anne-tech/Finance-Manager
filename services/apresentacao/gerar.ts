@@ -111,10 +111,33 @@ function addColuna(slide: pptxgen.Slide, o: {
     fontFace: FONT_TEXTO, fontSize: 13, bold: true, color: cor, margin: 0, valign: 'middle',
   });
 
+  // Colunas: categoria | descrição | valor
+  const margem = 0.35;
+  const gap = 0.08;
+  const wValor = 1.55;
+  const wCategoria = 1.30;
+  const wDescricao = w - margem * 2 - wValor - wCategoria - gap * 2;
+  const xCategoria = x + margem;
+  const xDescricao = xCategoria + wCategoria + gap;
+  const xValor = x + w - margem - wValor;
+
+  slide.addText('CATEGORIA', {
+    x: xCategoria, y: y + 0.63, w: wCategoria, h: 0.16,
+    fontFace: FONT_TEXTO, fontSize: 8, bold: true, color: COR.MUTED, charSpacing: 0.5, margin: 0, valign: 'bottom',
+  });
+  slide.addText('DESCRIÇÃO', {
+    x: xDescricao, y: y + 0.63, w: wDescricao, h: 0.16,
+    fontFace: FONT_TEXTO, fontSize: 8, bold: true, color: COR.MUTED, charSpacing: 0.5, margin: 0, valign: 'bottom',
+  });
+  slide.addText('VALOR', {
+    x: xValor, y: y + 0.63, w: wValor, h: 0.16,
+    fontFace: FONT_TEXTO, fontSize: 8, bold: true, color: COR.MUTED, charSpacing: 0.5, align: 'right', margin: 0, valign: 'bottom',
+  });
+
   const disponivel = h - 0.82 - 0.18;
   const n = o.itens.length + 1;
   const alturaLinha = Math.min(0.42, disponivel / n);
-  const fonte = alturaLinha < 0.34 ? 11.5 : 12.5;
+  const fonte = alturaLinha < 0.34 ? 9.5 : 10.5;
 
   let cursor = y + 0.82;
   o.itens.forEach((item, idx) => {
@@ -122,13 +145,18 @@ function addColuna(slide: pptxgen.Slide, o: {
       slide.addShape('line', { x: x + 0.35, y: cursor, w: w - 0.70, h: 0, line: { color: COR.LINE, width: 1 } });
     }
     const corTexto = item.muted ? COR.MUTED : COR.TEXTO;
+    slide.addText(item.categoria, {
+      x: xCategoria, y: cursor, w: wCategoria, h: alturaLinha,
+      fontFace: FONT_TEXTO, fontSize: fonte, italic: !!item.muted, color: COR.MUTED,
+      margin: 0, valign: 'middle', wrap: true,
+    });
     slide.addText(item.descricao, {
-      x: x + 0.35, y: cursor, w: w - 2.50, h: alturaLinha,
+      x: xDescricao, y: cursor, w: wDescricao, h: alturaLinha,
       fontFace: FONT_TEXTO, fontSize: fonte, italic: !!item.muted, color: corTexto,
-      margin: 0, valign: 'middle',
+      margin: 0, valign: 'middle', wrap: true,
     });
     slide.addText(brl(item.valor), {
-      x: x + w - 2.15, y: cursor, w: 1.80, h: alturaLinha,
+      x: xValor, y: cursor, w: wValor, h: alturaLinha,
       fontFace: FONT_TEXTO, fontSize: fonte, italic: !!item.muted,
       color: item.muted ? COR.MUTED : cor, align: 'right', margin: 0, valign: 'middle',
     });
@@ -138,11 +166,11 @@ function addColuna(slide: pptxgen.Slide, o: {
   slide.addShape('line', { x: x + 0.35, y: cursor, w: w - 0.70, h: 0, line: { color: cor, width: 1.5 } });
   cursor += 0.06;
   slide.addText(o.totalLabel, {
-    x: x + 0.35, y: cursor, w: w - 2.50, h: 0.40,
+    x: xCategoria, y: cursor, w: (xValor - gap) - xCategoria, h: 0.40,
     fontFace: FONT_TEXTO, fontSize: 13, bold: true, color: cor, margin: 0, valign: 'middle',
   });
   slide.addText(brl(o.total), {
-    x: x + w - 2.15, y: cursor, w: 1.80, h: 0.40,
+    x: xValor, y: cursor, w: wValor, h: 0.40,
     fontFace: FONT_TEXTO, fontSize: 13, bold: true, color: cor, align: 'right', margin: 0, valign: 'middle',
   });
 }
@@ -296,7 +324,7 @@ function addSlideMes(pres: pptxgen, dados: DadosApresentacao, mes: MesApresentac
 
   const itensEntradas: LinhaValor[] = [...mes.entradas];
   if (mes.saldo_anterior !== 0) {
-    itensEntradas.push({ descricao: 'Saldo do mês anterior', valor: mes.saldo_anterior, muted: true });
+    itensEntradas.push({ categoria: '—', descricao: 'Saldo do mês anterior', valor: mes.saldo_anterior, muted: true });
   }
   addColuna(slide, { x: 0.60, y: 2.98, w: 5.90, h: 3.88, titulo: 'ENTRADAS', cor: COR.GREEN, itens: itensEntradas, totalLabel: 'Total de entradas', total: mes.total_entradas });
   addColuna(slide, { x: 6.80, y: 2.98, w: 5.90, h: 3.88, titulo: 'SAÍDAS', cor: COR.RED, itens: mes.saidas, totalLabel: 'Total de saídas', total: mes.total_saidas });

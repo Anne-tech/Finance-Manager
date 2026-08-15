@@ -8,6 +8,7 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { getUsuarios, addUsuario, deleteUsuario, type Usuario } from '../database/operations';
@@ -93,7 +94,10 @@ export default function GerenciarUsuariosModal({ visible, onClose }: Props) {
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.overlay}>
+      <KeyboardAvoidingView
+        style={styles.overlay}
+        behavior="padding"
+      >
         <View style={styles.modal}>
           <View style={styles.header}>
             <Text style={styles.title}>Contas</Text>
@@ -178,7 +182,7 @@ export default function GerenciarUsuariosModal({ visible, onClose }: Props) {
             )}
           </ScrollView>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

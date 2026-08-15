@@ -8,7 +8,8 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
-  Platform
+  Platform,
+  KeyboardAvoidingView
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
@@ -16,14 +17,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { getCategorias, addTransacao, addCategoria, type Categoria } from '../database/operations';
 import { useUser } from '../context/UserContext';
 import GerenciarCategoriasModal from './GerenciarCategoriasModal';
+import { parseValorMonetario } from '../utils/valor';
 
 interface Props {
   visible: boolean;
+  mesReferencia: number;
+  anoReferencia: number;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-export default function FormSaidaModal({ visible, onClose, onSuccess }: Props) {
+export default function FormSaidaModal({ visible, mesReferencia, anoReferencia, onClose, onSuccess }: Props) {
   const { usuarioAtivo } = useUser();
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [descricao, setDescricao] = useState('');
@@ -39,8 +43,14 @@ export default function FormSaidaModal({ visible, onClose, onSuccess }: Props) {
   useEffect(() => {
     if (visible) {
       carregarCategorias();
+      const hoje = new Date();
+      if (mesReferencia === hoje.getMonth() && anoReferencia === hoje.getFullYear()) {
+        setData(hoje);
+      } else {
+        setData(new Date(anoReferencia, mesReferencia, 1));
+      }
     }
-  }, [visible]);
+  }, [visible, mesReferencia, anoReferencia]);
 
   const carregarCategorias = async () => {
     try {
@@ -85,7 +95,8 @@ export default function FormSaidaModal({ visible, onClose, onSuccess }: Props) {
   };
 
   const handleSubmit = async () => {
-    if (!valor || parseFloat(valor) <= 0) {
+    const valorNumerico = parseValorMonetario(valor);
+    if (!valor || isNaN(valorNumerico) || valorNumerico <= 0) {
       Alert.alert('Erro', 'Por favor, informe um valor válido');
       return;
     }
@@ -105,7 +116,7 @@ export default function FormSaidaModal({ visible, onClose, onSuccess }: Props) {
 
       await addTransacao(
         descricao || '',
-        parseFloat(valor),
+        valorNumerico,
         'SAIDA',
         dataISO,
         categoriaId,
@@ -140,7 +151,10 @@ export default function FormSaidaModal({ visible, onClose, onSuccess }: Props) {
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.overlay}>
+      <KeyboardAvoidingView
+        style={styles.overlay}
+        behavior="padding"
+      >
         <View style={styles.modal}>
           <View style={styles.header}>
             <Text style={styles.title}>Nova Saída</Text>
@@ -264,7 +278,7 @@ export default function FormSaidaModal({ visible, onClose, onSuccess }: Props) {
             </View>
           </ScrollView>
         </View>
-      </View>
+      </KeyboardAvoidingView>
 
       <GerenciarCategoriasModal
         visible={mostrarGerenciarCategorias}

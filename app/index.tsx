@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
+  TextInput,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
@@ -12,18 +13,29 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { getTransacoes, deleteAllTransacoes, deleteTransacao, type Transacao } from '../database/operations';
+import {
+  getTransacoes,
+  deleteAllTransacoes,
+  deleteTransacao,
+  getUsuarios,
+  getAjusteSaldoAnterior as buscarAjusteSaldoAnterior,
+  setAjusteSaldoAnterior as salvarAjusteSaldoAnterior,
+  removeAjusteSaldoAnterior as removerAjusteSaldoAnterior,
+  type Transacao,
+} from '../database/operations';
 import { useUser } from '../context/UserContext';
+import { parseValorMonetario } from '../utils/valor';
 import FormEntradaModal from '../components/FormEntradaModal';
 import FormSaidaModal from '../components/FormSaidaModal';
 import FormEditarTransacaoModal from '../components/FormEditarTransacaoModal';
 import GerenciarUsuariosModal from '../components/GerenciarUsuariosModal';
+import BackupModal from '../components/BackupModal';
 
 const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
 export default function Dashboard() {
   const router = useRouter();
-  const { usuarioAtivo } = useUser();
+  const { usuarioAtivo, setUsuarioAtivo } = useUser();
 
   const [transacoes, setTransacoes] = useState<Transacao[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,11 +44,16 @@ export default function Dashboard() {
   const [mostrarFormSaida, setMostrarFormSaida] = useState(false);
   const [mostrarFormEditar, setMostrarFormEditar] = useState(false);
   const [mostrarUsuarios, setMostrarUsuarios] = useState(false);
+  const [mostrarBackup, setMostrarBackup] = useState(false);
   const [transacaoSelecionada, setTransacaoSelecionada] = useState<Transacao | null>(null);
 
   const hoje = new Date();
   const [mesSelecionado, setMesSelecionado] = useState(hoje.getMonth());
   const [anoSelecionado, setAnoSelecionado] = useState(hoje.getFullYear());
+
+  const [ajusteSaldoAnterior, setAjusteSaldoAnteriorState] = useState<number | null>(null);
+  const [editandoSaldoAnterior, setEditandoSaldoAnterior] = useState(false);
+  const [inputSaldoAnterior, setInputSaldoAnterior] = useState('');
 
   const carregarTransacoes = useCallback(async () => {
     try {
@@ -90,17 +107,80 @@ export default function Dashboard() {
   const calcularTotalSaidas = () =>
     transacoesFiltradas.filter(t => t.tipo === 'SAIDA').reduce((acc, t) => acc + t.valor, 0);
 
-  const calcularSaldoMesAnterior = () => {
+  const getMesAnoAnterior = () => {
     let mes = mesSelecionado - 1;
     let ano = anoSelecionado;
     if (mes < 0) {
       mes = 11;
       ano -= 1;
     }
+    return { mes, ano };
+  };
+
+  const calcularSaldoMesAnteriorAuto = () => {
+    const { mes, ano } = getMesAnoAnterior();
     const mesAnteriorStr = `${ano}-${String(mes + 1).padStart(2, '0')}`;
     return transacoes
       .filter(t => t.data.startsWith(mesAnteriorStr))
       .reduce((acc, t) => t.tipo === 'ENTRADA' ? acc + t.valor : acc - t.valor, 0);
+  };
+
+  useEffect(() => {
+    const carregarAjuste = async () => {
+      setEditandoSaldoAnterior(false);
+      if (!usuarioAtivo) {
+        setAjusteSaldoAnteriorState(null);
+        return;
+      }
+      const { mes, ano } = getMesAnoAnterior();
+      try {
+        const valor = await buscarAjusteSaldoAnterior(usuarioAtivo.id, ano, mes);
+        setAjusteSaldoAnteriorState(valor);
+      } catch (error) {
+        console.error('Erro ao carregar ajuste de saldo do mês anterior:', error);
+      }
+    };
+    carregarAjuste();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [usuarioAtivo?.id, mesSelecionado, anoSelecionado]);
+
+  const iniciarEdicaoSaldoAnterior = (valorAtual: number) => {
+    setInputSaldoAnterior(valorAtual.toFixed(2).replace('.', ','));
+    setEditandoSaldoAnterior(true);
+  };
+
+  const cancelarEdicaoSaldoAnterior = () => {
+    setEditandoSaldoAnterior(false);
+    setInputSaldoAnterior('');
+  };
+
+  const salvarSaldoAnteriorManual = async () => {
+    if (!usuarioAtivo) return;
+    const valorNumerico = parseValorMonetario(inputSaldoAnterior);
+    if (isNaN(valorNumerico)) {
+      Alert.alert('Erro', 'Informe um valor válido');
+      return;
+    }
+    const { mes, ano } = getMesAnoAnterior();
+    try {
+      await salvarAjusteSaldoAnterior(usuarioAtivo.id, ano, mes, valorNumerico);
+      setAjusteSaldoAnteriorState(valorNumerico);
+      setEditandoSaldoAnterior(false);
+    } catch (error) {
+      Alert.alert('Erro', 'Não foi possível salvar o saldo do mês anterior');
+    }
+  };
+
+  const restaurarSaldoAnteriorAutomatico = async () => {
+    if (!usuarioAtivo) return;
+    const { mes, ano } = getMesAnoAnterior();
+    try {
+      await removerAjusteSaldoAnterior(usuarioAtivo.id, ano, mes);
+      setAjusteSaldoAnteriorState(null);
+      setEditandoSaldoAnterior(false);
+    } catch (error) {
+      Alert.alert('Erro', 'Não foi possível restaurar o valor automático');
+    }
   };
 
   const formatarValor = (valor: number) =>
@@ -162,6 +242,17 @@ export default function Dashboard() {
     setMostrarFormEditar(true);
   };
 
+  const handleImportado = async () => {
+    try {
+      const usuarios = await getUsuarios();
+      const aindaExiste = usuarioAtivo && usuarios.some(u => u.id === usuarioAtivo.id);
+      setUsuarioAtivo(aindaExiste ? usuarioAtivo : (usuarios[0] || null));
+    } catch (error) {
+      console.error('Erro ao recarregar contas após importação:', error);
+    }
+    await carregarTransacoes();
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -171,7 +262,7 @@ export default function Dashboard() {
   }
 
   const saldoTotal = calcularSaldoTotal();
-  const saldoMesAnterior = calcularSaldoMesAnterior();
+  const saldoMesAnterior = ajusteSaldoAnterior !== null ? ajusteSaldoAnterior : calcularSaldoMesAnteriorAuto();
 
   return (
     <SafeAreaView style={styles.container}>
@@ -179,8 +270,19 @@ export default function Dashboard() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <View style={styles.header}>
-          <Text style={styles.title}>Controle Financeiro</Text>
-          <Text style={styles.subtitle}>Acompanhe suas entradas e saídas</Text>
+          <View style={styles.headerRow}>
+            <View>
+              <Text style={styles.title}>Controle Financeiro</Text>
+              <Text style={styles.subtitle}>Acompanhe suas entradas e saídas</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.backupButton}
+              onPress={() => setMostrarBackup(true)}
+              accessibilityLabel="Backup de dados"
+            >
+              <Ionicons name="swap-vertical-outline" size={22} color="#374151" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Seletor de usuário */}
@@ -273,10 +375,48 @@ export default function Dashboard() {
                 </Text>
               </View>
               <View style={[styles.card, saldoMesAnterior >= 0 ? styles.cardPositive : styles.cardNegative]}>
-                <Text style={styles.cardTitle}>Saldo Total Mês Anterior</Text>
-                <Text style={[styles.cardValue, saldoMesAnterior >= 0 ? styles.valuePositive : styles.valueNegative]}>
-                  {formatarValor(saldoMesAnterior)}
-                </Text>
+                <View style={styles.cardHeaderRow}>
+                  <Text style={styles.cardTitle}>Saldo Total Mês Anterior</Text>
+                  {!editandoSaldoAnterior && (
+                    <View style={styles.cardHeaderActions}>
+                      {ajusteSaldoAnterior !== null && (
+                        <TouchableOpacity
+                          style={styles.cardIconButton}
+                          onPress={restaurarSaldoAnteriorAutomatico}
+                        >
+                          <Ionicons name="refresh-outline" size={16} color="#6b7280" />
+                        </TouchableOpacity>
+                      )}
+                      <TouchableOpacity
+                        style={styles.cardIconButton}
+                        onPress={() => iniciarEdicaoSaldoAnterior(saldoMesAnterior)}
+                      >
+                        <Ionicons name="pencil-outline" size={16} color="#6b7280" />
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+                {editandoSaldoAnterior ? (
+                  <View style={styles.cardEditRow}>
+                    <TextInput
+                      style={styles.cardEditInput}
+                      value={inputSaldoAnterior}
+                      onChangeText={setInputSaldoAnterior}
+                      keyboardType="decimal-pad"
+                      autoFocus
+                    />
+                    <TouchableOpacity style={styles.cardIconButton} onPress={salvarSaldoAnteriorManual}>
+                      <Ionicons name="checkmark" size={20} color="#10b981" />
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.cardIconButton} onPress={cancelarEdicaoSaldoAnterior}>
+                      <Ionicons name="close" size={20} color="#6b7280" />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <Text style={[styles.cardValue, saldoMesAnterior >= 0 ? styles.valuePositive : styles.valueNegative]}>
+                    {formatarValor(saldoMesAnterior)}
+                  </Text>
+                )}
               </View>
             </View>
 
@@ -321,14 +461,24 @@ export default function Dashboard() {
         onClose={() => setMostrarUsuarios(false)}
       />
 
+      <BackupModal
+        visible={mostrarBackup}
+        onClose={() => setMostrarBackup(false)}
+        onImportado={handleImportado}
+      />
+
       <FormEntradaModal
         visible={mostrarFormEntrada}
+        mesReferencia={mesSelecionado}
+        anoReferencia={anoSelecionado}
         onClose={() => setMostrarFormEntrada(false)}
         onSuccess={carregarTransacoes}
       />
 
       <FormSaidaModal
         visible={mostrarFormSaida}
+        mesReferencia={mesSelecionado}
+        anoReferencia={anoSelecionado}
         onClose={() => setMostrarFormSaida(false)}
         onSuccess={carregarTransacoes}
       />
@@ -351,8 +501,21 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
   },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   title: { fontSize: 24, fontWeight: 'bold', color: '#111827', marginBottom: 4 },
   subtitle: { fontSize: 14, color: '#6b7280' },
+  backupButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f3f4f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   usuarioBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -443,6 +606,34 @@ const styles = StyleSheet.create({
   cardSaida: { borderLeftWidth: 4, borderLeftColor: '#ef4444' },
   cardTitle: { fontSize: 14, color: '#6b7280', marginBottom: 8 },
   cardValue: { fontSize: 28, fontWeight: 'bold' },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  cardHeaderActions: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  cardIconButton: {
+    padding: 4,
+  },
+  cardEditRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  cardEditInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
   valuePositive: { color: '#10b981' },
   valueNegative: { color: '#ef4444' },
   transacoesContainer: { padding: 16 },

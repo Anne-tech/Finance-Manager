@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const http = require('http');
 const fs = require('fs');
@@ -64,7 +64,43 @@ function createWindow() {
   });
 
   win.loadURL(`http://127.0.0.1:${PORT}/`);
+  return win;
 }
+
+// Salva conteúdo em disco via diálogo nativo "Salvar como".
+ipcMain.handle('save-file', async (event, { defaultPath, filters, content, encoding }) => {
+  const parentWindow = BrowserWindow.fromWebContents(event.sender);
+  const result = await dialog.showSaveDialog(parentWindow, { defaultPath, filters });
+  if (result.canceled || !result.filePath) {
+    return { canceled: true };
+  }
+  const buffer = Buffer.from(content, encoding === 'base64' ? 'base64' : 'utf-8');
+  fs.writeFileSync(result.filePath, buffer);
+  return { canceled: false, filePath: result.filePath };
+});
+
+// Renderiza HTML para PDF (sem passar pelo diálogo de impressão) e salva via "Salvar como".
+ipcMain.handle('print-to-pdf', async (event, { html, defaultPath }) => {
+  const parentWindow = BrowserWindow.fromWebContents(event.sender);
+  const result = await dialog.showSaveDialog(parentWindow, {
+    defaultPath,
+    filters: [{ name: 'PDF', extensions: ['pdf'] }],
+  });
+  if (result.canceled || !result.filePath) {
+    return { canceled: true };
+  }
+
+  const hiddenWin = new BrowserWindow({ show: false, webPreferences: { offscreen: true } });
+  try {
+    await hiddenWin.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+    const pdfBuffer = await hiddenWin.webContents.printToPDF({});
+    fs.writeFileSync(result.filePath, pdfBuffer);
+  } finally {
+    hiddenWin.destroy();
+  }
+
+  return { canceled: false, filePath: result.filePath };
+});
 
 app.whenReady().then(async () => {
   if (!fs.existsSync(path.join(DIST_DIR, 'index.html'))) {

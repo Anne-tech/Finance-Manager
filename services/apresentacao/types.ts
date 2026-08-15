@@ -1,4 +1,5 @@
 export interface LinhaValor {
+  categoria: string;
   descricao: string;
   valor: number;
   muted?: boolean;

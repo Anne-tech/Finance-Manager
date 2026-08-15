@@ -16,6 +16,7 @@
     "@react-native-picker/picker": "2.11.1",
     "expo": "~54.0.25",
     "expo-constants": "^18.0.10",
+    "expo-document-picker": "~14.0.8",
     "expo-file-system": "^19.0.19",
     "expo-linking": "^8.0.9",
     "expo-print": "~15.0.7",

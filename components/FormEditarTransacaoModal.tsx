@@ -8,12 +8,14 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
-  Platform
+  Platform,
+  KeyboardAvoidingView
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { getCategorias, updateTransacao, type Transacao } from '../database/operations';
 import { useUser } from '../context/UserContext';
+import { parseValorMonetario } from '../utils/valor';
 
 interface Props {
   visible: boolean;
@@ -58,7 +60,7 @@ export default function FormEditarTransacaoModal({ visible, transacao, onClose, 
   const handleSalvar = async () => {
     if (!transacao) return;
 
-    const valorNumerico = parseFloat(valor);
+    const valorNumerico = parseValorMonetario(valor);
     if (isNaN(valorNumerico) || valorNumerico <= 0) {
       Alert.alert('Erro', 'O valor deve ser um número maior que zero');
       return;
@@ -119,7 +121,10 @@ export default function FormEditarTransacaoModal({ visible, transacao, onClose, 
       transparent={true}
       onRequestClose={onClose}
     >
-      <View style={styles.overlay}>
+      <KeyboardAvoidingView
+        style={styles.overlay}
+        behavior="padding"
+      >
         <View style={styles.modal}>
           <ScrollView>
             <Text style={styles.title}>
@@ -209,7 +214,7 @@ export default function FormEditarTransacaoModal({ visible, transacao, onClose, 
             </View>
           </ScrollView>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

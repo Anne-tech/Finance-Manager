@@ -56,6 +56,19 @@ const criarTabelas = async (db: SQLite.SQLiteDatabase) => {
       FOREIGN KEY (categoria_id) REFERENCES categorias(id)
     );
   `);
+
+  await db.execAsync(`
+    CREATE TABLE IF NOT EXISTS ajustes_saldo (
+      id TEXT PRIMARY KEY,
+      usuario_id TEXT NOT NULL,
+      ano INTEGER NOT NULL,
+      mes INTEGER NOT NULL,
+      valor REAL NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(usuario_id, ano, mes)
+    );
+  `);
 };
 
 const migrarParaUsuarios = async (db: SQLite.SQLiteDatabase) => {

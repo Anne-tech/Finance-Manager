@@ -18,12 +18,17 @@ export async function montarDadosApresentacao(opts: GerarDadosOpts): Promise<Dad
     throw new Error('Não há transações registradas no período selecionado.');
   }
 
-  const porMes = new Map<string, { entradas: { descricao: string; valor: number }[]; saidas: { descricao: string; valor: number }[] }>();
+  type Lancamento = { categoria: string; descricao: string; valor: number };
+  const porMes = new Map<string, { entradas: Lancamento[]; saidas: Lancamento[] }>();
   relatorio.transacoes.forEach((t: any) => {
     const chave = t.data.slice(0, 7);
     if (!porMes.has(chave)) porMes.set(chave, { entradas: [], saidas: [] });
     const bucket = porMes.get(chave)!;
-    const linha = { descricao: t.descricao || t.categoria?.nome || 'Sem descrição', valor: round2(t.valor) };
+    const linha = {
+      categoria: t.categoria?.nome || 'Sem Categoria',
+      descricao: t.descricao || t.categoria?.nome || 'Sem descrição',
+      valor: round2(t.valor),
+    };
     if (t.tipo === 'ENTRADA') bucket.entradas.push(linha);
     else bucket.saidas.push(linha);
   });
