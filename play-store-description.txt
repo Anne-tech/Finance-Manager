@@ -1,0 +1,188 @@
+========================================
+FINANCE MANAGER - GOOGLE PLAY STORE
+DESCRIÇÕES PRONTAS PARA COPIAR E COLAR
+========================================
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. TÍTULO DO APP (30 caracteres)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Finance Manager
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2. DESCRIÇÃO BREVE (80 caracteres)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Gerencie suas finanças pessoais de forma simples, segura e offline.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+3. DESCRIÇÃO COMPLETA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 FINANCE MANAGER - SEU CONTROLE FINANCEIRO PESSOAL
+
+Organize suas finanças de forma simples, rápida e totalmente segura! O Finance Manager é o aplicativo perfeito para quem deseja ter controle total sobre receitas e despesas sem complicação.
+
+✨ PRINCIPAIS RECURSOS
+
+💰 GESTÃO COMPLETA DE TRANSAÇÕES
+• Registre entradas e saídas de forma rápida e intuitiva
+• Adicione descrições detalhadas para cada transação
+• Organize por categorias pré-definidas ou personalizadas
+• Visualize o saldo total atualizado em tempo real
+
+📈 RELATÓRIOS MENSAIS DETALHADOS
+• Gere relatórios completos por período
+• Visualize totais de entradas e saídas
+• Analise gastos por categoria
+• Acompanhe a evolução do seu saldo
+
+📄 EXPORTAÇÃO DE DADOS
+• Exporte relatórios em formato PDF
+• Compartilhe ou imprima seus dados financeiros
+• Mantenha backup dos seus registros
+
+✏️ EDIÇÃO E EXCLUSÃO
+• Edite transações já cadastradas
+• Exclua registros indesejados
+• Limpe todos os dados quando necessário
+• Total controle sobre suas informações
+
+🎨 INTERFACE MODERNA E INTUITIVA
+• Design limpo e profissional
+• Navegação simples e objetiva
+• Cores que facilitam a visualização
+• Experiência de uso agradável
+
+🔒 PRIVACIDADE E SEGURANÇA GARANTIDAS
+
+Este é o grande diferencial do Finance Manager:
+
+✅ 100% OFFLINE - Nenhum dado é enviado para a internet
+✅ ARMAZENAMENTO LOCAL - Todos os dados ficam apenas no seu dispositivo
+✅ SEM CADASTRO - Não pedimos e-mail, telefone ou qualquer informação pessoal
+✅ SEM RASTREAMENTO - Não coletamos dados de uso ou comportamento
+✅ SEM ANÚNCIOS - Experiência limpa, sem propagandas
+✅ SEM PERMISSÕES INVASIVAS - Apenas o essencial para funcionar
+
+Seus dados financeiros são exclusivamente seus. Não temos acesso, não coletamos, não compartilhamos. Tudo permanece seguro no seu dispositivo.
+
+👥 IDEAL PARA
+
+• Pessoas que buscam organização financeira pessoal
+• Quem precisa controlar gastos do dia a dia
+• Profissionais autônomos e freelancers
+• Pequenos negócios e igrejas
+• Qualquer pessoa que valoriza privacidade
+
+📊 CATEGORIAS PRÉ-CONFIGURADAS
+
+ENTRADAS:
+• Dízimos
+• Ofertas (Especial, Missionária, Acampamento)
+• Resgates de aplicações
+• E muito mais
+
+SAÍDAS:
+• Contas (Água, Telefone, IPTU)
+• Aluguéis e Zeladoria
+• Salários e INSS
+• Plano de Saúde
+• Combustível e Transporte
+• Papelaria e Materiais
+• Assistência Social
+• Outras despesas
+
+💡 POR QUE ESCOLHER O FINANCE MANAGER?
+
+Diferente de outros aplicativos de finanças que exigem cadastro, sincronização com bancos, acesso aos seus dados ou assinatura mensal, o Finance Manager oferece uma solução simples e direta:
+
+→ Baixe, abra e comece a usar imediatamente
+→ Nenhuma configuração complexa
+→ Sem mensalidades ou compras dentro do app
+→ Totalmente funcional offline
+→ Seus dados nunca saem do seu dispositivo
+
+🎯 RECURSOS TÉCNICOS
+
+• Interface em Português (Brasil)
+• Compatível com Android
+• Tamanho pequeno do aplicativo
+• Não consome dados móveis
+• Baixo consumo de bateria
+• Funciona em modo avião
+
+📱 COMO FUNCIONAR
+
+1. Baixe e instale o aplicativo
+2. Adicione suas transações (entradas e saídas)
+3. Selecione a categoria apropriada
+4. Acompanhe seu saldo em tempo real
+5. Gere relatórios mensais quando quiser
+6. Exporte em PDF se precisar compartilhar
+
+🆓 TOTALMENTE GRATUITO
+
+O Finance Manager é completamente gratuito, sem anúncios, sem compras internas e sem surpresas. Nossa missão é oferecer uma ferramenta de qualidade para ajudar você a ter mais controle sobre suas finanças.
+
+📞 SUPORTE
+
+Tem dúvidas ou sugestões? Entre em contato conosco! Estamos sempre trabalhando para melhorar o aplicativo e ouvimos atentamente o feedback dos usuários.
+
+⭐ AVALIE O APP
+
+Se você gostou do Finance Manager, deixe sua avaliação! Isso nos ajuda a continuar desenvolvendo e melhorando o aplicativo.
+
+---
+
+BAIXE AGORA e comece a organizar suas finanças de forma simples, segura e privada!
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+4. NOTAS DA VERSÃO (O que há de novo)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🎉 Versão 1.0.2 - Melhorias e Correções
+
+✅ Correção de bugs relacionados ao banco de dados
+✅ Melhorias na estabilidade do aplicativo
+✅ Correção no tratamento de datas
+✅ Otimizações de performance
+✅ Interface aprimorada
+
+Obrigado por usar o Finance Manager!
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+5. INFORMAÇÕES ADICIONAIS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CATEGORIA: Finanças
+
+CLASSIFICAÇÃO DE CONTEÚDO: Livre (PEGI 3)
+
+TAGS/PALAVRAS-CHAVE:
+controle financeiro, finanças pessoais, gestão financeira, orçamento, receitas e despesas, relatórios financeiros, offline, privacidade, seguro, grátis, sem anúncios, organizador financeiro, economia
+
+E-MAIL DE CONTATO: [Seu e-mail aqui]
+
+SITE/POLÍTICA DE PRIVACIDADE: [URL da política de privacidade hospedada]
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+6. TEXTOS PARA SCREENSHOTS (Legendas)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Screenshot 1: Visualize seu saldo total e todas as transações
+Screenshot 2: Registre receitas de forma rápida e fácil
+Screenshot 3: Controle todos os seus gastos
+Screenshot 4: Gere relatórios mensais detalhados
+Screenshot 5: Exporte e compartilhe seus dados financeiros
+Screenshot 6: 100% offline e seguro - seus dados não saem do dispositivo
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FIM DO ARQUIVO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

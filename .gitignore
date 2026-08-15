@@ -1,8 +1,50 @@
-node_modules
-# Keep environment variables out of version control
-.env
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
-/generated/prisma
+# dependencies
+node_modules/
 
-# Claude Code configuration
-.claude/
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.keystore
+*.p8
+*.p12
+*.key
+*.mobileprovision
+key.properties
+CREDENCIAIS_KEYSTORE.txt
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# artefato acidental de `> nul` rodado no Git Bash (nome reservado no Windows)
+nul
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+# generated native folders
+/ios
+/android
+
+# Claude Code local settings
+.claude/settings.local.json
