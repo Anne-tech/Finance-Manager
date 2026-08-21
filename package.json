@@ -1,6 +1,8 @@
 {
   "name": "finance-manager-mobile",
   "version": "1.0.0",
+  "description": "Finance Manager - Controle financeiro desktop",
+  "author": "Ana Rodrigues",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
@@ -9,7 +11,8 @@
     "web": "expo start --web",
     "build:web": "expo export --platform web --output-dir dist",
     "electron": "electron electron/main.js",
-    "desktop": "npm run build:web && npm run electron"
+    "desktop": "npm run build:web && npm run electron",
+    "dist:win": "npm run build:web && electron-builder --win"
   },
   "dependencies": {
     "@react-native-community/datetimepicker": "8.4.4",
@@ -35,8 +38,36 @@
   "devDependencies": {
     "@types/react": "~19.1.10",
     "electron": "^43.4.0",
+    "electron-builder": "^26.15.3",
     "patch-package": "^8.0.1",
     "typescript": "~5.9.2"
   },
-  "private": true
+  "private": true,
+  "build": {
+    "appId": "com.anarodrigues.financemanager",
+    "productName": "Finance Manager",
+    "extraMetadata": {
+      "main": "electron/main.js"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "!node_modules/**/*"
+    ],
+    "npmRebuild": false,
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "assets/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
 }
